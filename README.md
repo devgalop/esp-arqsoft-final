@@ -1,5 +1,9 @@
 # Entrega final - Escenarios y Tacticas aplicadas al proyecto
 
+## Contexto del proyecto
+
+El proyecto se centra en el desarrollo de un tutor inteligente enfocado en la identificación de debilidades de los estudiantes y la recomendación de contenidos personalizados para mejorar su aprendizaje. El sistema analizará el desempeño de los estudiantes a través de evaluaciones, detectará áreas de mejora y sugerirá recursos educativos específicos para cada estudiante. El tutor mediante rubricas previamente definidas, calificará el desempeño del estudiante y clasificará su nivel de comprensión, permitiendo adaptar las recomendaciones a sus necesidades individuales. El objetivo es proporcionar una experiencia de aprendizaje personalizada y efectiva que ayude a los estudiantes a superar sus dificultades en fundamentos de desarrollo de software.
+
 ## Priorización de atributos de calidad
 
 |Atributo de calidad|Importancia (0-5)|Justificación|
@@ -72,3 +76,27 @@
 |Métrica de respuesta|Tiempo de respuesta menor a 2 segundo por interacción. <br> Soporte de al menos 1.000 estudiantes concurrentes. <br> Pérdida de respuestas igual a 0. <br> Disponibilidad superior al 99.9% durante evaluación.|
 |Riesgos o implicaciones|Saturación de base de datos. <br> Contención de escritura concurrente. <br> Timeouts de sesión. <br> Sobrecarga de red. <br> Bloqueos transaccionales. <br> Caída parcial del sistema durante picos|
 |Tácticas arquitectónicas|Escalamiento horizontal. <br> Escritura asíncrona controlada. <br> Uso de colas de mensajería. <br> CQRS.|
+
+## Justificación de tácticas arquitectónicas
+
+|Escenario|Táctica|Justificación|Ventajas|Riesgos|
+|---|---|---|---|---|
+|1|Autosave incremental|Reduce la pérdida de respuestas guardando cambios parciales periódicamente durante la evaluación.|Minimiza pérdida de información, mejora experiencia del estudiante, permite recuperación rápida.|Sobrecarga de escrituras, aumento de tráfico de red, posibles inconsistencias si no hay control de concurrencia.
+|1|Persistencia temporal desacoplada|Separa el almacenamiento temporal del definitivo para evitar afectar el rendimiento y la consistencia de las evaluaciones oficiales.|Mayor escalabilidad, aislamiento de fallos, mejor rendimiento en escritura temporal.|Complejidad arquitectónica adicional, necesidad de sincronización entre almacenamiento temporal y definitivo.|
+|1|Session recovery|Permite restaurar el estado de la evaluación tras cierres inesperados o desconexiones.|Continuidad de la evaluación, reducción de frustración del usuario, mayor confiabilidad percibida.|Manejo complejo de sesiones, riesgo de sesiones inconsistentes o concurrentes.|
+|1|Caché temporal distribuida|Almacena temporalmente el estado de evaluaciones activas para reducir latencia y carga sobre la base de datos principal.|Respuesta rápida, soporte de alta concurrencia, disminución de carga en persistencia principal.|Riesgo de pérdida temporal de datos si la caché falla, complejidad de sincronización y expiración de datos.|
+|2|Versionamiento de reglas|Permite modificar la estructura de rúbricas sin afectar evaluaciones históricas ni reglas ya utilizadas en producción.|Conserva trazabilidad, facilita rollback, reduce inconsistencias históricas.|Incremento de complejidad en almacenamiento y mantenimiento de múltiples versiones.|
+|2|APIs desacopladas|Evita que cambios en la estructura interna de rúbricas impacten directamente otros módulos consumidores.|Reduce propagación de cambios, facilita evolución independiente de componentes, mejora mantenibilidad.|Riesgo de sobreabstracción, necesidad de controlar compatibilidad entre versiones de APIs.|
+|3|RBAC y políticas de autorización centralizadas|Controla qué usuarios pueden modificar calificaciones o resultados, evitando accesos indebidos y escalamiento de privilegios.|Centraliza reglas de seguridad, facilita auditoría y administración de permisos, reduce accesos no autorizados.|Configuración compleja de roles y riesgo de permisos mal definidos.|
+|3|Auditoría inmutable|Permite registrar toda modificación crítica de forma trazable e irreversible para detectar manipulaciones o accesos indebidos.|Trazabilidad completa, soporte forense, detección de actividades sospechosas.|Incremento en almacenamiento y posible impacto en rendimiento si no se optimiza.|
+|3|Validación server-side obligatoria|Evita confiar en datos manipulados desde el cliente y asegura que todas las reglas de negocio se validen en backend.|Reduce manipulación de endpoints, garantiza integridad de datos, fortalece seguridad.|Mayor carga de procesamiento en backend y duplicación parcial de validaciones frontend/backend.|
+|3|Control transaccional ACID|Garantiza consistencia e integridad de los datos durante operaciones críticas concurrentes.|Evita corrupción de datos, asegura atomicidad y consistencia entre operaciones relacionadas.|Posibles bloqueos y degradación de rendimiento bajo alta concurrencia.|
+|3|Principio de menor privilegio|Limita los permisos de usuarios y servicios únicamente a las operaciones necesarias.|Reduce superficie de ataque y minimiza impacto de cuentas comprometidas.|Mayor complejidad administrativa y riesgo de afectar funcionalidades por permisos insuficientes.|
+|4|Escalamiento horizontal|Permite distribuir la carga de miles de estudiantes concurrentes entre múltiples instancias del módulo de evaluación, evitando saturación de un único nodo.|Alta disponibilidad, mejor manejo de picos de carga, mejora de latencia bajo concurrencia.|Complejidad en balanceo de carga, problemas de consistencia de sesión si no se diseña correctamente.|
+|4|Escritura asíncrona controlada|Desacopla la recepción de respuestas de su persistencia inmediata, reduciendo bloqueo en la experiencia del estudiante.|Menor latencia percibida, mayor throughput, evita bloqueos por escritura directa en base de datos.|Riesgo de pérdida temporal de datos si falla la cola, consistencia eventual más compleja de gestionar.|
+|4|Uso de colas de mensajería|Introduce un buffer entre la captura de respuestas y su procesamiento/persistencia para absorber picos de carga.|Manejo eficiente de picos, desacoplamiento entre componentes, mayor resiliencia ante fallos.|Latencia en procesamiento, complejidad operativa, necesidad de monitoreo de colas.|
+|4|CQRS|Separa operaciones de lectura (visualización de preguntas) y escritura (envío de respuestas), optimizando cada flujo de forma independiente.|Optimización de rendimiento, escalabilidad independiente de lectura/escritura, reduce contención en base de datos.|Mayor complejidad arquitectónica, duplicación de modelos, consistencia eventual entre lecturas y escrituras.|
+
+## Diagrama C4 nivel 3
+
+![Diagrama C4 nivel 3](resources/c4_itmentorsoft_componentes.drawio.png)
